@@ -1,4 +1,8 @@
+const PADDING_MIN = 1;
+const PADDING_MAX = 6;
+
 const controls = document.getElementById("controls");
+const canvasContainer = document.getElementById("canvas-container");
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.querySelector("#canvas");
@@ -6,6 +10,7 @@ const ctx = canvas.getContext("2d");
 
 
 const aspectRatioState = useState("2:3");
+const conatinerBgColorState = useState("white");
 
 const imageState = useState({
   activeIndex: -1,
@@ -13,8 +18,7 @@ const imageState = useState({
 });
 
 const paddingState = useState({
-  x: 1,
-  y: 1,
+  padding: 1,
   fillStyle: "white",
 });
 
@@ -24,11 +28,29 @@ const borderState = useState({
 });
 
 
-imageState.watch(renderActiveImage);
+aspectRatioState.watch((current) => {
+  if (current === "2:3") {
+    canvas.style.width = "600px";
+    canvas.style.height = "400px";
+  }
+  if (current === "Square") {
+    canvas.style.width = "400px";
+    canvas.style.height = "400px";
+  }
+}, { immediate: true });
+
+conatinerBgColorState.watch((current) => {
+  canvasContainer.style.backgroundColor = current;
+}, { immediate: true });
+
+imageState.watch(renderActiveImage, { immediate: true });
+paddingState.watch(renderActiveImage, { immediate: true });
 
 
-// setupAspectRatioControl();
+setupAspectRatioControl();
 setupFileInputControl();
+setupPaddingControl();
+setupContainerBgColorControl();
 
 
 function setupAspectRatioControl() {
@@ -59,7 +81,7 @@ function setupFileInputControl() {
   const fileInput = document.createElement("input");
   fileInput.setAttribute("type", "file");
   fileInput.setAttribute("accept", "image/*");
-  // fileInput.setAttribute("multiple", "");
+  fileInput.setAttribute("multiple", "");
 
   fileInput.addEventListener("change", async (ev) => {
     if (!ev.target.files || ev.target.files.length === 0) {
@@ -86,27 +108,80 @@ function setupFileInputControl() {
 }
 
 
+function setupPaddingControl() {
+  const color = createInput({
+    label: "Frame color",
+    onInput(ev) {
+      paddingState.update({
+        ...paddingState.value,
+        fillStyle: ev.target.value
+      });
+    }
+  });
+
+  color.input.setAttribute("type", "color");
+
+  const padding = createInput({
+    label: "Frame padding",
+    initialValue: paddingState.value.padding,
+    onInput(ev) {
+      paddingState.update({
+        ...paddingState.value,
+        padding: Number.parseInt(ev.target.value),
+      });
+    }
+  });
+
+  padding.input.setAttribute("type", "range");
+  padding.input.setAttribute("step", 1);
+  padding.input.setAttribute("min", PADDING_MIN);
+  padding.input.setAttribute("max", PADDING_MAX);
+
+  controls.append(color.container, padding.container);
+}
+
+function setupContainerBgColorControl() {
+  const bgColor = createInput({
+    label: "Container background",
+    initialValue: conatinerBgColorState.value,
+    onInput(ev) {
+      conatinerBgColorState.update(ev.target.value);
+    },
+  });
+
+  bgColor.input.setAttribute("type", "color");
+
+  controls.append(bgColor.container);
+}
+
 
 function renderActiveImage() {
   const image = imageState.value.list[imageState.value.activeIndex];
     
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  if (image) {
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
 
-  const paddingX = image.naturalWidth / (9 * (5 - paddingState.value.x));
-  const paddingY = image.naturalHeight / (6 * (5 - paddingState.value.y));
+    const padding = paddingState.value.padding;
 
-  ctx.restore();
-  ctx.fillStyle = paddingState.value.fillStyle;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(
-    image,
-    paddingX / 2,
-    paddingY / 2,
-    canvas.width - paddingX,
-    canvas.height - paddingY
-  );
+    const xMod = aspectRatioState.value === "2:3" ? 6 : 4;
+    const yMod = 4;
+  
+    const paddingX = image.naturalWidth / (xMod * (PADDING_MAX - padding + 1));
+    const paddingY = image.naturalHeight / (yMod * (PADDING_MAX - padding + 1));
+  
+    ctx.restore();
+    ctx.fillStyle = paddingState.value.fillStyle;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(
+      image,
+      paddingX / 2,
+      paddingY / 2,
+      canvas.width - paddingX,
+      canvas.height - paddingY
+    );
+  }
 }
 
 
@@ -160,4 +235,35 @@ function loadImage(file) {
     });
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * 
+ * @param {{
+ *   initialValue: any;
+ *   label?: string;
+ *   onInput: (ev: InputEvent) => void;
+ * }} param0 
+ * @returns 
+ */
+function createInput({
+  initialValue,
+  label,
+  onInput,
+} = {}) {
+  const container = document.createElement("div");
+  container.classList.add("input");
+
+  const label_ = document.createElement("label");
+  label_.classList.add("input__label");
+
+
+  const input = document.createElement("input");
+  input.classList.add("input__input");
+  input.value = initialValue;
+  input.addEventListener("input", onInput);
+
+  container.append(label, input);
+
+  return { container, input, label: label_ };
 }

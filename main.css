@@ -1,6 +1,4 @@
 
-
-
 #controls {
     margin: 16px 0;
 }
@@ -13,15 +11,30 @@
     width: 200px;
 }
 
-.canvas-wrapper {
-    width: 600px;
-    height: 100%;
+#canvas-container {
+    width: 900px;
+    height: 600px;
     display: flex;
     justify-content: center;
+    align-items: center;
+    border: 1px solid #aaa;
 }
 
 #canvas {
-    border: 1px solid black;
-    width: 600px;
-    height: inherit;
+    background-color: whitesmoke;
+}
+
+.input {
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+}
+
+.input__label {
+    display: inline-block;
+    padding: 2px 4px;
+}
+
+.input__input {
+    flex: 0
 }
