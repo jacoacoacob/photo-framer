@@ -1,0 +1,27 @@
+
+
+
+#controls {
+    margin: 16px 0;
+}
+
+.images {
+    height: 400px;
+}
+
+.thumbnails {
+    width: 200px;
+}
+
+.canvas-wrapper {
+    width: 600px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+#canvas {
+    border: 1px solid black;
+    width: 600px;
+    height: inherit;
+}
