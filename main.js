@@ -1,5 +1,7 @@
 const PADDING_MIN = 1;
-const PADDING_MAX = 6;
+const PADDING_MAX = 5;
+
+const CANVAS_WIDTH = 600;
 
 const controls = document.getElementById("controls");
 const canvasContainer = document.getElementById("canvas-container");
@@ -8,6 +10,8 @@ const canvasContainer = document.getElementById("canvas-container");
 const canvas = document.querySelector("#canvas");
 const ctx = canvas.getContext("2d");
 
+canvas.width = CANVAS_WIDTH;
+canvas.height = CANVAS_WIDTH;
 
 const aspectRatioState = useState("2:3");
 const conatinerBgColorState = useState("black");
@@ -18,21 +22,12 @@ const imageState = useState({
 });
 
 const paddingState = useState({
-  padding: 3,
-  fillStyle: "white",
+  padding: 2,
+  fillStyle: "#ffffff",
 });
 
-
-aspectRatioState.watch((current) => {
-  if (current === "2:3") {
-    canvas.style.width = "600px";
-    canvas.style.height = "400px";
-  }
-  if (current === "Square") {
-    canvas.style.width = "400px";
-    canvas.style.height = "400px";
-  }
-}, { immediate: true });
+imageState.watch(renderActiveImage, { immediate: true });
+paddingState.watch(renderActiveImage, { immediate: true });
 
 conatinerBgColorState.watch(
   (current) => {
@@ -41,54 +36,10 @@ conatinerBgColorState.watch(
   { immediate: true }
 );
 
-imageState.watch(() => {
-  const activeImage = imageState.value.list[imageState.value.activeIndex];
-  if (activeImage) {
-    canvas.dataset.fileName = activeImage.dataset.fileName;
-  }
-  renderActiveImage();
-}, { immediate: true });
-paddingState.watch(renderActiveImage, { immediate: true });
-
-
 setupFileInputControl();
-setupAspectRatioControl();
-setupPaddingControl();
 setupContainerBgColorControl();
+setupPaddingControl();
 setupSaveButton();
-
-
-function setupAspectRatioControl() {
-  const select = document.createElement("select");
-  select.id = "aspect-ratio-select";
-
-  const placeholder = document.createElement("option");
-  placeholder.disabled = true;
-  placeholder.textContent = "Aspect Ratio";
-  select.append(placeholder);
-  
-  ["2:3", "Square"].forEach((x) => {
-    const option = document.createElement("option");
-    option.textContent = x;
-    option.value = x;
-    option.selected = x === aspectRatioState.value;
-    select.append(option);
-  });
-
-  select.addEventListener("change", (ev) => {
-    aspectRatioState.update(ev.target.value);
-  });
-
-  const label = document.createElement("label");
-  label.setAttribute("for", "aspect-ratio-select");
-  label.textContent = "Aspect Ratio";
-
-  const container = document.createElement("div");
-  container.classList.add("input");
-  container.append(label, select);
-
-  controls.append(container);
-}
 
 
 function setupFileInputControl() {
@@ -192,20 +143,32 @@ function setupSaveButton() {
 
 
 function renderActiveImage() {
+  /** @type {HTMLImageElement | undefined} */
   const image = imageState.value.list[imageState.value.activeIndex];
 
   if (image) {
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
+    const { naturalWidth, naturalHeight, dataset } = image;
+    canvas.dataset.fileName = dataset.fileName;
 
-    const padding = paddingState.value.padding;
+    const heightRatio = getHeightRatio(naturalWidth, naturalHeight);
 
-    const xMod = aspectRatioState.value === "2:3" ? 6 : 4;
-    const yMod = 4;
+    canvas.style.width = CANVAS_WIDTH + "px";
+    canvas.style.height = Math.round(CANVAS_WIDTH * heightRatio) + "px";
+
+    canvas.width = naturalWidth;
+    canvas.height = naturalHeight;
+
+    const paddingModifier = [-34, -21, -13, -8, -3][paddingState.value.padding - 1];
+
+    const xAspect = 1;
+    const yAspect = heightRatio;
   
-    const paddingX = image.naturalWidth / (xMod * (PADDING_MAX - padding + 1));
-    const paddingY = image.naturalHeight / (yMod * (PADDING_MAX - padding + 1));
-    
+    const xMod = xAspect * (PADDING_MAX - paddingModifier);
+    const yMod = yAspect * (PADDING_MAX - paddingModifier);
+
+    const paddingX = image.naturalWidth / xMod;
+    const paddingY = image.naturalHeight / yMod;
+
     ctx.fillStyle = paddingState.value.fillStyle;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -312,4 +275,12 @@ function createInput({
   container.append(label_, input);
 
   return { container, input, label: label_ };
+}
+
+function getHeightRatio(width, height) {
+  return round(height / width);
+}
+
+function round(number) {
+  return Math.round(number * 100) / 100;
 }
