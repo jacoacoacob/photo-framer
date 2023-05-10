@@ -1,17 +1,12 @@
 const PADDING_MIN = 1;
 const PADDING_MAX = 5;
 
-const CANVAS_WIDTH = 600;
-
 const controls = document.getElementById("controls");
 const canvasContainer = document.getElementById("canvas-container");
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.querySelector("#canvas");
 const ctx = canvas.getContext("2d");
-
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_WIDTH;
 
 const aspectRatioState = useState("2:3");
 const conatinerBgColorState = useState("black");
@@ -41,6 +36,7 @@ setupContainerBgColorControl();
 setupPaddingControl();
 setupSaveButton();
 
+window.addEventListener("resize", renderActiveImage);
 
 function setupFileInputControl() {
   const fileUpload = createInput({
@@ -141,6 +137,31 @@ function setupSaveButton() {
   controls.append(button);
 }
 
+function resizeCanvas() {
+  const CANVAS_MAX_WIDTH = window.innerWidth > 632 ? 600 : Math.round(window.innerWidth * 0.9);
+
+  /** @type {HTMLImageElement | undefined} */
+  const image = imageState.value.list[imageState.value.activeIndex];
+
+  if (image) {
+    const { naturalWidth, naturalHeight } = image;
+    const heightRatio = getHeightRatio(naturalWidth, naturalHeight);
+    
+    const canvasWidth = naturalWidth < CANVAS_MAX_WIDTH
+      ? naturalWidth
+      : CANVAS_MAX_WIDTH;
+
+    const canvasHeight = naturalHeight < Math.round(CANVAS_MAX_WIDTH * heightRatio)
+      ? naturalHeight
+      : Math.round(CANVAS_MAX_WIDTH * heightRatio);
+
+    canvas.style.width = canvasWidth + "px";
+    canvas.style.height = canvasHeight + "px";
+
+    canvas.width = naturalWidth;
+    canvas.height = naturalHeight;
+  }
+}
 
 function renderActiveImage() {
   /** @type {HTMLImageElement | undefined} */
@@ -148,15 +169,12 @@ function renderActiveImage() {
 
   if (image) {
     const { naturalWidth, naturalHeight, dataset } = image;
+
     canvas.dataset.fileName = dataset.fileName;
 
     const heightRatio = getHeightRatio(naturalWidth, naturalHeight);
 
-    canvas.style.width = CANVAS_WIDTH + "px";
-    canvas.style.height = Math.round(CANVAS_WIDTH * heightRatio) + "px";
-
-    canvas.width = naturalWidth;
-    canvas.height = naturalHeight;
+    resizeCanvas();
 
     const paddingModifier = [-34, -21, -13, -8, -3][paddingState.value.padding - 1];
 
@@ -258,7 +276,6 @@ function createInput({
   const label_ = document.createElement("label");
   label_.classList.add("input__label");
   label_.textContent = label;
-
 
   const input = document.createElement("input");
   input.classList.add("input__input");
