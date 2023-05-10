@@ -10,7 +10,7 @@ const ctx = canvas.getContext("2d");
 
 
 const aspectRatioState = useState("2:3");
-const conatinerBgColorState = useState("white");
+const conatinerBgColorState = useState("black");
 
 const imageState = useState({
   activeIndex: -1,
@@ -18,13 +18,8 @@ const imageState = useState({
 });
 
 const paddingState = useState({
-  padding: 1,
+  padding: 3,
   fillStyle: "white",
-});
-
-const borderState = useState({
-  width: 1,
-  color: "black"
 });
 
 
@@ -39,22 +34,33 @@ aspectRatioState.watch((current) => {
   }
 }, { immediate: true });
 
-conatinerBgColorState.watch((current) => {
-  canvasContainer.style.backgroundColor = current;
-}, { immediate: true });
+conatinerBgColorState.watch(
+  (current) => {
+    canvasContainer.style.backgroundColor = current;
+  },
+  { immediate: true }
+);
 
-imageState.watch(renderActiveImage, { immediate: true });
+imageState.watch(() => {
+  const activeImage = imageState.value.list[imageState.value.activeIndex];
+  if (activeImage) {
+    canvas.dataset.fileName = activeImage.dataset.fileName;
+  }
+  renderActiveImage();
+}, { immediate: true });
 paddingState.watch(renderActiveImage, { immediate: true });
 
 
-setupAspectRatioControl();
 setupFileInputControl();
+setupAspectRatioControl();
 setupPaddingControl();
 setupContainerBgColorControl();
+setupSaveButton();
 
 
 function setupAspectRatioControl() {
   const select = document.createElement("select");
+  select.id = "aspect-ratio-select";
 
   const placeholder = document.createElement("option");
   placeholder.disabled = true;
@@ -73,44 +79,54 @@ function setupAspectRatioControl() {
     aspectRatioState.update(ev.target.value);
   });
 
-  controls.append(select);
+  const label = document.createElement("label");
+  label.setAttribute("for", "aspect-ratio-select");
+  label.textContent = "Aspect Ratio";
+
+  const container = document.createElement("div");
+  container.classList.add("input");
+  container.append(label, select);
+
+  controls.append(container);
 }
 
 
 function setupFileInputControl() {
-  const fileInput = document.createElement("input");
-  fileInput.setAttribute("type", "file");
-  fileInput.setAttribute("accept", "image/*");
-  fileInput.setAttribute("multiple", "");
-
-  fileInput.addEventListener("change", async (ev) => {
-    if (!ev.target.files || ev.target.files.length === 0) {
-      return;
-    }
-
-    try {
-      const imagePromises = [];
-
-      for (let i = 0; i < ev.target.files.length; i++) {
-        imagePromises.push(loadImage(ev.target.files[i]));
+  const fileUpload = createInput({
+    label: "Upload photo",
+    async onChange(ev) {
+      if (!ev.target.files || ev.target.files.length === 0) {
+        return;
       }
-
-      imageState.update({
-        activeIndex: 0, 
-        list: await Promise.all(imagePromises)
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  
+      try {
+        const imagePromises = [];
+  
+        for (let i = 0; i < ev.target.files.length; i++) {
+          imagePromises.push(loadImage(ev.target.files[i]));
+        }
+  
+        imageState.update({
+          activeIndex: 0, 
+          list: await Promise.all(imagePromises)
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    },
   });
 
-  controls.append(fileInput)
+  fileUpload.input.setAttribute("type", "file");
+  fileUpload.input.setAttribute("accept", "image/*");
+
+  controls.append(fileUpload.container);
 }
 
 
 function setupPaddingControl() {
   const color = createInput({
     label: "Frame color",
+    initialValue: paddingState.value.fillStyle,
     onInput(ev) {
       paddingState.update({
         ...paddingState.value,
@@ -154,10 +170,30 @@ function setupContainerBgColorControl() {
   controls.append(bgColor.container);
 }
 
+function setupSaveButton() {
+  const button = document.createElement("button");
+  button.textContent = "Save image";
+  button.style.cursor = "pointer";
+  button.style.border = "1px solid #aaa";
+  button.style.borderRadius = "4px";
+  button.style.padding = "4px 8px";
+
+  button.addEventListener("click", () => {
+    if (imageState.value.activeIndex > -1) {
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/jpeg");
+      a.download = "framed_" + canvas.dataset.fileName;
+      a.click();
+    }
+  });
+
+  controls.append(button);
+}
+
 
 function renderActiveImage() {
   const image = imageState.value.list[imageState.value.activeIndex];
-    
+
   if (image) {
     canvas.width = image.naturalWidth;
     canvas.height = image.naturalHeight;
@@ -169,11 +205,11 @@ function renderActiveImage() {
   
     const paddingX = image.naturalWidth / (xMod * (PADDING_MAX - padding + 1));
     const paddingY = image.naturalHeight / (yMod * (PADDING_MAX - padding + 1));
-  
-    ctx.restore();
+    
     ctx.fillStyle = paddingState.value.fillStyle;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     ctx.drawImage(
       image,
       paddingX / 2,
@@ -242,7 +278,8 @@ function loadImage(file) {
  * @param {{
  *   initialValue: any;
  *   label?: string;
- *   onInput: (ev: InputEvent) => void;
+ *   onInput?: (ev: InputEvent) => void;
+ *   onChange?: (ev: InputEvent) => void;
  * }} param0 
  * @returns 
  */
@@ -250,20 +287,29 @@ function createInput({
   initialValue,
   label,
   onInput,
+  onChange,
 } = {}) {
   const container = document.createElement("div");
   container.classList.add("input");
 
   const label_ = document.createElement("label");
   label_.classList.add("input__label");
+  label_.textContent = label;
 
 
   const input = document.createElement("input");
   input.classList.add("input__input");
   input.value = initialValue;
-  input.addEventListener("input", onInput);
+  
+  if (onInput) {
+    input.addEventListener("input", onInput);
+  }
+  
+  if (onChange) {
+    input.addEventListener("change", onChange);
+  }
 
-  container.append(label, input);
+  container.append(label_, input);
 
   return { container, input, label: label_ };
 }
