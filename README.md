@@ -1,5 +1,5 @@
-# PhotoFramer
+# Photo Framer
 
-A tool to add nice litte frames to your pics 🖼
+A simple tool to add nice litte frames to your cute pics 🖼
 
-https://jacoacoacob.github.io/photo-framer/
+[Use it](https://jacoacoacob.github.io/photo-framer/)
